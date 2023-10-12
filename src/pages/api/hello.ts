@@ -3,7 +3,8 @@
  */
 import { NextApiRequest, NextApiResponse } from "next";
 import axios from "axios";
-import { DynamoDB } from "aws-sdk"; // 追加
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { PutCommand, DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 
 /***
  *Interface & Type
@@ -62,7 +63,15 @@ export default async function handler(
         }
       );
 
-      const dynamoDb = new DynamoDB.DocumentClient();
+      // リージョンとアクセスキーを設定
+      const dbClient = new DynamoDBClient({
+        region: process.env.AWS_REGION,
+        credentials: {
+          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+        },
+      });
+
       const item = {
         id: `${Date.now()}`,
         userInput: userInput,
@@ -75,7 +84,8 @@ export default async function handler(
         Item: item,
       };
 
-      await dynamoDb.put(params).promise();
+      const command = new PutCommand(params);
+      await dbClient.send(command); // データをDynamoDBに書き込む
 
       res.status(200).json({
         message: openaiResponse.data.choices[0].message.content,
