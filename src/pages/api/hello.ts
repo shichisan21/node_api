@@ -4,12 +4,21 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import axios from "axios";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { PutCommand, DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
+import {
+  PutCommand,
+  ScanCommand,
+  DynamoDBDocumentClient,
+  QueryCommand,
+} from "@aws-sdk/lib-dynamodb";
+import { marshall } from "@aws-sdk/util-dynamodb";
 
 /***
  *Interface & Type
  */
-
+interface Item {
+  timestamp: string;
+  // 他のプロパティもここに追加できます
+}
 /**
  * Constant
  */
@@ -35,6 +44,35 @@ export default async function handler(
   if (!tableName) {
     res.status(500).json({ error: "DynamoDB table name is not set" });
     return;
+  }
+
+  if (req.method === "GET") {
+    try {
+      const dbClient = new DynamoDBClient({
+        region: process.env.AWS_REGION,
+        credentials: {
+          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+        },
+      });
+
+      const params = {
+        TableName: tableName,
+      };
+
+      const command = new ScanCommand(params);
+      const data = await dbClient.send(command);
+
+      const sortedItems = data.Items.sort((a: Item, b: Item) => {
+        return b.timestamp.localeCompare(a.timestamp);
+      });
+
+      const latestItems = sortedItems.slice(0, 2);
+      res.status(200).json({ items: latestItems });
+    } catch (error: any) {
+      console.error("Error fetching data:", error);
+      res.status(500).json({ error: "Error fetching data" });
+    }
   }
 
   if (req.method === "POST") {
@@ -94,8 +132,6 @@ export default async function handler(
       console.error("Error:", error?.response?.data || error.message);
       res.status(500).json({ error: "Error processing your request" });
     }
-  } else if (req.method === "GET") {
-    res.status(200).json({ name: "John Doe" });
   } else {
     res.status(405).json({ error: "Method not allowed" });
   }
