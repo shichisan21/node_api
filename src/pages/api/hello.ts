@@ -22,12 +22,7 @@ export default async function handler(
 
     try {
       const response: AxiosResponse<any> = await axios.get(
-        "http://127.0.0.1:3000/api/upload-csv",
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
+        "http://127.0.0.1:3000/api/hello"
       );
       console.log("Upload successful:", response.data);
     } catch (error) {
